@@ -52,6 +52,28 @@ const prepareOutputFilename = filename => {
   return changedName;
 }
 
+const transformImage = async function (inputFile, outputFile, changeType) {
+  try {
+    const image = await Jimp.read(inputFile);
+
+    switch (changeType) {
+      case 'Make image brighter':
+        image.brightness(0.3)
+      case 'Increase contrast':
+        image.contrast(0.3)
+      case 'Make image b&w':
+        image.greyscale()
+      case 'Invert image':
+        image.invert()
+    }
+
+    await image.quality(100).writeAsync(outputFile);
+
+  } catch (error) {
+    console.log('Something went wrong... Try again!');
+  }
+}
+
 
 const startApp = async () => {
   // Ask if user is ready
@@ -70,17 +92,46 @@ const startApp = async () => {
     type: 'input',
     message: 'What file do you want to mark?',
     default: 'test.jpg',
-  }, {
-    name: 'watermarkType',
-    type: 'list',
-    choices: ['Text watermark', 'Image watermark'],
-  }]);
+  },
+  {
+    name: 'changeImage',
+    message: 'Do you want to make changes to the image before proceeding?',
+    type: 'confirm'
+  }
+  ]);
 
   // exit with an err msg if input image path is invalid
   if (!existsSync('./img/' + options.inputImage)) {
     console.log('Something went wrong... Try again');
     process.exit();
   }
+
+  if (options.changeImage) {
+    const possibleChanges = await inquirer.prompt([
+      {
+        name: 'changeType',
+        type: 'list',
+        choices: ['Make image brighter', 'Increase contrast', 'Make image b&w', 'Invert image'],
+      }
+    ]);
+
+
+    transformImage('./img/' + options.inputImage, './img/' + 'changed-' + options.inputImage, possibleChanges.changeType)
+
+    // change inputImage so it uses changed image without overwriting the original one
+    options.inputImage = 'changed-' + options.inputImage;
+  }
+
+  const type = await inquirer.prompt([
+    {
+      name: 'watermarkType',
+      type: 'list',
+      choices: ['Text watermark', 'Image watermark'],
+    }
+  ]);
+
+  // add watermark to options object to keep it organized
+  options.watermarkType = type.watermarkType;
 
   if (options.watermarkType === 'Text watermark') {
     const text = await inquirer.prompt([{
